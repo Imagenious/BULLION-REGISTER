@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+instance/
+*.db
+backups/
+*.backup.json
+# the earlier single-page browser version; not part of the Python app
+bullion-book.html
+.claude/

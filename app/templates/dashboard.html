@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, gold_items %}
+{% block title %}Dashboard · Bullion Register{% endblock %}
+{% block content %}
+{% set t = totals %}
+<section class="summary" aria-label="Reserve summary">
+  <div class="hero">
+    <div>
+      <div class="figs">
+        <div class="fig own {{ 'neg' if t.available < 0 }}"><span class="lbl">Own reserve</span><span class="big" id="own-reserve">{{ t.available|g3 }}<small>g</small></span></div>
+        <span class="op" aria-hidden="true">+</span>
+        <div class="fig adv"><span class="lbl">Customer advances (gold)</span><span class="big" id="adv-gold">{{ t.advance_g|g3 }}<small>g</small></span></div>
+        <span class="op" aria-hidden="true">=</span>
+        <div class="fig"><span class="lbl">Total gold in hand</span><span class="big" id="total-gold">{{ t.total_in_hand|g3 }}<small>g</small></span></div>
+      </div>
+      <div class="breakdown">
+        <span class="grp"><span>Own reserve:</span><b>{{ t.bullion|g3 }}</b><span>lodged</span><span>−</span><b>{{ t.k_out|g3 }}</b><span>issued to karigars</span><span>+</span><b>{{ t.reserve_in|g3 }}</b><span>back from settled orders</span><span>=</span><b>{{ t.available|g3 }} g</b></span>
+        <span class="grp"><span>Advances:</span><b>{{ t.gold_in|g3 }}</b><span>gold received</span><span>+</span><b>{{ t.booked|g3 }}</b><span>booked with cash</span><span>=</span><b>{{ t.advance_g|g3 }} g</b></span>
+      </div>
+      <p class="sub">Fine (24K) grams. Advances move into your own reserve when their order settles. Once every open order settles at today's rate you expect <b class="num">{{ t.expected_after_settlement|g3 }} g</b> in your own reserve.</p>
+    </div>
+    <form class="rate-box" method="post" action="{{ url_for('main.set_rate') }}">
+      {{ csrf() }}
+      <label class="lbl" for="rate">Today's 24K rate (₹/g)</label>
+      <div class="row"><input id="rate" name="rate" type="number" step="0.01" min="0" value="{{ settings.today_rate or '' }}" placeholder="e.g. 15000" required><button class="btn sm primary" type="submit">Update</button></div>
+      <span class="muted" style="font-size:12px">{% if settings.today_date == today %}Updated today.{% elif settings.today_date %}Last updated {{ settings.today_date|fdate }}. Update it this morning.{% else %}Enter it every morning. Alerts use it.{% endif %}</span>
+    </form>
+  </div>
+  {% set base = [t.available, 0]|max + t.advance_g + t.deployed %}
+  <div class="bar" aria-hidden="true">
+    <span class="b-av" style="width:{{ ([t.available,0]|max / base * 100) if base else 0 }}%"></span>
+    <span class="b-adv" style="width:{{ (t.advance_g / base * 100) if base else 0 }}%"></span>
+    <span class="b-dep" style="width:{{ (t.deployed / base * 100) if base else 0 }}%"></span>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--gold-fill)"></i>Own reserve</span>
+    <span><i style="background:var(--adv-fill)"></i>Customer advances held</span>
+    <span><i style="background:var(--deployed)"></i>With karigars (open orders)</span>
+  </div>
+  <div class="tiles">
+    <div class="tile"><span class="lbl">Bullion lodged (net)</span><span class="v">{{ t.bullion|g3 }} g</span><span class="h">In {{ t.bullion_in|g3 }} · out {{ t.bullion_out|g3 }}</span></div>
+    <div class="tile"><span class="lbl">With karigars</span><span class="v dep">{{ t.deployed|g3 }} g</span><span class="h">{{ t.open_n }} open order{{ '' if t.open_n == 1 else 's' }}</span></div>
+    <div class="tile"><span class="lbl">Advance gold received</span><span class="v adv">{{ t.gold_in|g3 }} g</span><span class="h">Old gold / bars from customers</span></div>
+    <div class="tile"><span class="lbl">Advance gold booked</span><span class="v adv">{{ t.booked|g3 }} g</span><span class="h">Bought with customer cash</span></div>
+    <div class="tile"><span class="lbl">Cash advances not booked</span><span class="v {{ 'warn' if t.cash_unbooked >= 1 else 'good' }}">{{ t.cash_unbooked|inr }}</span><span class="h">Cash in hand, not yet gold</span></div>
+    <div class="tile"><span class="lbl">Still to book</span><span class="v {{ 'crit' if t.exposure_g > settings.max_open_g else ('warn' if t.exposure_amt >= 1 else 'good') }}">{{ t.exposure_amt|inr }}</span><span class="h">{% if t.exposure_amt >= 1 %}≈ {{ t.exposure_g|g3 }} g exposed to rate{% else %}Every order is fully covered{% endif %}</span></div>
+    <div class="tile"><span class="lbl">Gold earned</span><span class="v good">{{ t.earned|sg3 }} g</span><span class="h">{{ t.settled_n }} settled · labour {{ t.labour|inr }}</span></div>
+    <div class="tile"><span class="lbl">Expected on open orders</span><span class="v gold">{{ t.pending|sg3 }} g</span><span class="h">{% if settings.today_rate %}At today's rate ₹{{ '{:,.0f}'.format(settings.today_rate) }}{% else %}At order rates{% endif %}</span></div>
+    <div class="tile"><span class="lbl">Rate difference (settled)</span><span class="v {{ 'good' if t.rate_diff > 0.0005 else ('warn' if t.rate_diff < -0.0005 else '') }}">{{ t.rate_diff|sg3 }} g</span><span class="h">Gold won or lost from rate moves</span></div>
+  </div>
+</section>
+
+<form class="quick" id="quick-form" method="post" action="{{ url_for('main.record_advance') }}" data-preview="{{ url_for('main.preview_advance') }}">
+  {{ csrf() }}
+  <div class="page-head"><h2 class="section-title">Record an advance</h2><span class="spacer"></span>
+    <div class="seg" role="radiogroup" aria-label="Advance type">
+      <label><input type="radio" name="kind" value="cash" {% if sel_kind not in ('gold','book') %}checked{% endif %}><span>Cash received</span></label>
+      <label><input type="radio" name="kind" value="gold" {% if sel_kind == 'gold' %}checked{% endif %}><span>Gold received</span></label>
+      <label><input type="radio" name="kind" value="book" {% if sel_kind == 'book' %}checked{% endif %}><span>Book gold with cash</span></label>
+    </div>
+  </div>
+  <div class="qrow">
+    <div class="field order"><label for="q-order">Order</label>
+      <select id="q-order" name="order_id" required>
+        <option value="">{{ 'Choose an open order…' if open_pairs else 'No open orders' }}</option>
+        {% for o, c in open_pairs %}<option value="{{ o.id }}" data-rate="{{ '%g'|format(o.rate24 or 0) }}" {% if not c.tracked %}disabled{% endif %} {% if sel_order == o.id %}selected{% endif %}>{{ o.order_no }} · {{ o.customer or '—' }}{% if c.tracked %} · due {{ [c.due,0]|max|inr }}{% else %} (add order rate first){% endif %}</option>{% endfor %}
+      </select></div>
+    <div class="field"><label for="q-date">Date</label><input id="q-date" name="date" type="date" value="{{ today }}"></div>
+    <div class="field" data-for="cash"><label for="q-cash">Amount ₹</label><input id="q-cash" name="cash_amount" type="number" min="0" step="1"></div>
+    <div class="field" data-for="book"><label for="q-bamt">Cash to book ₹</label><input id="q-bamt" name="book_amount" type="number" min="0" step="1"></div>
+    <div class="field" data-for="cash book" id="q-rate-f"><label for="q-rate">Rate paid, 24K ₹/g</label><input id="q-rate" name="rate" type="number" min="0" step="0.01" value="{{ settings.today_rate or '' }}"></div>
+    <button class="btn adv" type="submit" data-for="cash book">Save</button>
+  </div>
+  <div data-for="gold">{{ gold_items('', '') }}</div>
+  <div data-for="gold"><button class="btn adv" type="submit">Save old gold</button></div>
+  <label class="check" data-for="cash"><input type="checkbox" id="q-booknow" name="book_now" checked> <span>Also book gold with this cash now (SOP step 2)</span></label>
+  <div class="hint" id="q-hint" aria-live="polite">Pick an order. Cash, gold received and gold booked are held as that customer's advance until you settle the order.</div>
+</form>
+
+{% if alerts %}
+<section class="alerts" aria-label="Needs attention">
+  <h2 class="section-title">Needs attention</h2>
+  {% for a in alerts %}
+  <div class="alert {{ a.severity }}"><span class="sev">{{ {'crit':'Act now','warn':'Check','good':'Opportunity','info':'Info'}[a.severity] }}</span><span class="msg">{{ a.message }}</span>
+    {% if a.action == 'book' %}<a class="btn sm adv" href="{{ url_for('main.dashboard', order=a.order_id, kind='book') }}#quick-form">Book gold</a><a class="btn sm" href="{{ url_for('main.order_detail', order_id=a.order_id) }}">Open order</a>
+    {% elif a.action == 'open' %}<a class="btn sm" href="{{ url_for('main.order_detail', order_id=a.order_id) }}">Open order</a>
+    {% elif a.action == 'edit' %}<a class="btn sm" href="{{ url_for('main.edit_order', order_id=a.order_id) }}">Edit order</a>
+    {% elif a.action == 'rate' %}<a class="btn sm" href="#rate">Enter rate</a>{% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if not pairs and not t.bullion_in %}
+<section class="box" style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px;display:grid;gap:8px">
+  <h2>Get started</h2>
+  <p class="muted" style="margin:0">1. Lodge your opening bullion under <a href="{{ url_for('main.reserve') }}">Reserve statement</a>. 2. Set your usual touch and wastage under <a href="{{ url_for('main.settings') }}">Settings</a>. 3. Create your first order. Moving from the browser version? Import its backup under Settings &amp; backup.</p>
+</section>
+{% endif %}
+{% endblock %}

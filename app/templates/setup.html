@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Set up · Bullion Register{% endblock %}
+{% block content %}
+<div class="auth">
+  <form class="box" method="post">
+    {{ csrf() }}
+    <h1>Welcome</h1>
+    <p class="muted" style="margin:0 0 8px">Create the owner account. You'll use it to sign in here and on the cloud copy.</p>
+    {% if error %}<div class="error-box" role="alert">{{ error }}</div>{% endif %}
+    <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required minlength="3" autofocus></div>
+    <div class="field"><label for="password">Password (8+ characters)</label><input id="password" name="password" type="password" autocomplete="new-password" required minlength="8"></div>
+    <div class="field"><label for="confirm">Repeat password</label><input id="confirm" name="confirm" type="password" autocomplete="new-password" required minlength="8"></div>
+    <button class="btn primary" type="submit">Create account</button>
+  </form>
+</div>
+{% endblock %}

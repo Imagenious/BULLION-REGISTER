@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{% block title %}Bullion Register{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+{% if session.get('user_id') %}
+<header class="topbar">
+  <div class="inner">
+    <a class="brand" href="{{ url_for('main.dashboard') }}">Bullion Register</a>
+    <div class="actions">
+      <a class="btn sm primary" href="{{ url_for('main.new_order') }}">+ New<span class="hide-sm"> order</span></a>
+      <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="linkbtn" type="submit">Sign out</button>
+      </form>
+    </div>
+    {% set ep = request.endpoint or '' %}
+    <nav class="tabs" aria-label="Sections">
+      <a class="tab" href="{{ url_for('main.dashboard') }}" {% if ep == 'main.dashboard' %}aria-current="page"{% endif %}>Dashboard</a>
+      <a class="tab" href="{{ url_for('main.orders') }}" {% if ep in ('main.orders','main.order_detail','main.edit_order','main.new_order') %}aria-current="page"{% endif %}>Orders</a>
+      <a class="tab" href="{{ url_for('main.advances') }}" {% if ep == 'main.advances' %}aria-current="page"{% endif %}>Advances</a>
+      <a class="tab" href="{{ url_for('main.reserve') }}" {% if ep == 'main.reserve' %}aria-current="page"{% endif %}>Reserve statement</a>
+      <a class="tab" href="{{ url_for('main.sop') }}" {% if ep == 'main.sop' %}aria-current="page"{% endif %}>Rate SOP</a>
+      <a class="tab" href="{{ url_for('main.settings') }}" {% if ep in ('main.settings','auth.change_password') %}aria-current="page"{% endif %}>Settings &amp; backup</a>
+    </nav>
+  </div>
+</header>
+{% endif %}
+<main class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+  {% if msgs %}<div class="flashes" role="status">{% for cat, m in msgs %}<div class="flash {{ 'error' if cat == 'error' }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

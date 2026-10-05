@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Settings · Bullion Register{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Settings &amp; backup</h1></div>
+<div class="form-grid">
+  <form method="post" action="{{ url_for('main.settings') }}" class="stack" autocomplete="off">
+    {{ csrf() }}
+    <fieldset>
+      <legend>SOP limits</legend>
+      <p class="fs-note">The dashboard alerts use these numbers.</p>
+      <div class="fields">
+        <div class="field"><label for="alert_pct">Book the rest if the rate moves by (%)</label><input id="alert_pct" name="alert_pct" type="number" step="0.1" min="0" value="{{ s.alert_pct }}"></div>
+        <div class="field"><label for="lock_days">Cash must be booked within (days)</label><input id="lock_days" name="lock_days" type="number" step="1" min="0" value="{{ s.lock_days }}"></div>
+        <div class="field"><label for="max_open_g">Max unbooked gold, all orders (g)</label><input id="max_open_g" name="max_open_g" type="number" step="0.1" min="0" value="{{ s.max_open_g }}"></div>
+        <div class="field"><label for="adv_pct">Minimum advance (%)</label><input id="adv_pct" name="adv_pct" type="number" step="1" min="0" max="100" value="{{ s.adv_pct }}"></div>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Default touch by purity</legend>
+      <div class="tbl-wrap" style="border:0">
+        <table>
+          <thead><tr><th>Purity</th><th class="n">Customer purity %</th><th class="n">Karigar touch %</th></tr></thead>
+          <tbody>{% for k in karats %}<tr><td>{{ k }}K</td>
+            <td class="n"><input class="num" style="width:110px;text-align:right" aria-label="{{ k }}K customer purity %" name="c_{{ k }}" type="number" step="0.01" min="0" value="{{ s.touch[k].c }}"></td>
+            <td class="n"><input class="num" style="width:110px;text-align:right" aria-label="{{ k }}K karigar touch %" name="k_{{ k }}" type="number" step="0.01" min="0" value="{{ s.touch[k].k }}"></td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Other defaults</legend>
+      <div class="fields">
+        <div class="field"><label for="c_wastage">Customer wastage %</label><input id="c_wastage" name="c_wastage" type="number" step="0.01" min="0" value="{{ s.c_wastage }}"></div>
+        <div class="field"><label for="c_labour">Customer labour ₹/g</label><input id="c_labour" name="c_labour" type="number" step="0.01" min="0" value="{{ s.c_labour }}"></div>
+        <div class="field"><label for="k_wastage">Karigar wastage %</label><input id="k_wastage" name="k_wastage" type="number" step="0.01" min="0" value="{{ s.k_wastage }}"></div>
+        <div class="field"><label for="k_labour">Karigar labour ₹/g</label><input id="k_labour" name="k_labour" type="number" step="0.01" min="0" value="{{ s.k_labour }}"></div>
+      </div>
+      <label class="check"><input type="checkbox" name="labour_to_gold" {% if s.labour_to_gold %}checked{% endif %}> <span>Convert labour margin to gold by default</span></label>
+    </fieldset>
+    <div><button class="btn primary" type="submit">Save defaults</button></div>
+  </form>
+
+  <div class="stack">
+    <section class="box">
+      <h3>Backup</h3>
+      <p class="muted" style="margin:0;font-size:13.5px">Download a full backup regularly. It also moves your records between this computer and the cloud.</p>
+      <div class="row"><a class="btn" href="{{ url_for('main.export_json') }}">Download backup (.json)</a><a class="btn" href="{{ url_for('main.export_csv') }}">Orders (.csv)</a></div>
+    </section>
+    <form class="box" method="post" action="{{ url_for('main.import_backup') }}" enctype="multipart/form-data" data-confirm="Import this backup?">
+      {{ csrf() }}
+      <h3>Import a backup</h3>
+      <p class="muted" style="margin:0;font-size:13.5px">Accepts backups from this app and from the browser version of Bullion Book.</p>
+      <input type="file" name="file" accept=".json,application/json" required aria-label="Backup file">
+      <label class="check"><input type="checkbox" name="replace"> <span>Replace all existing records (orders, advances and bullion entries)</span></label>
+      <div><button class="btn" type="submit">Import</button></div>
+    </form>
+    <section class="box">
+      <h3>Account</h3>
+      <a class="btn" href="{{ url_for('auth.change_password') }}" style="justify-self:start">Change password</a>
+    </section>
+  </div>
+</div>
+{% endblock %}

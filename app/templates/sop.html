@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Rate SOP · Bullion Register{% endblock %}
+{% block content %}
+{% set steps = [
+  ("At booking", "Fix the order rate and take the advance", "Write the 24K order rate on the bill. Take at least " ~ (s.adv_pct|round|int) ~ "% advance in cash, gold, or both. Test the purity of any gold the customer gives and record stones and melting loss. For long orders, ask for more advance or quote a little higher wastage."),
+  ("Same day", "Turn the cash advance into gold", "Gold received from the customer is already gold, so it carries no rate risk. Book the gold share of any cash advance the same day (Record an advance → Cash received → tick “Also book gold”). The app warns you if cash sits unbooked for more than " ~ (s.lock_days|round|int) ~ " days."),
+  ("Your choice", "Decide on the balance, deliberately", "The part of the bill not yet covered is a bet on the rate. Booking it early with your own cash removes the risk. Leaving it open gains if the rate falls and loses if it rises. Keep the total under " ~ s.max_open_g ~ " g across all orders."),
+  ("Every morning", "Enter today's 24K rate", "Every open order then shows its gain at today's rate, its rate difference and its break-even rate."),
+  ("When alerted", "Follow the alert the same day", "Rate up " ~ s.alert_pct ~ "% or more: book the rest now and don't wait for it to come back. Rate down " ~ s.alert_pct ~ "% or more: booking now earns extra grams. Near break-even: book immediately."),
+  ("At settlement", "Collect the balance and settle", "Settle from the order page. The app books whatever is still uncovered at the rate you enter, then the customer's whole advance moves into your own reserve."),
+  ("Every month", "Review the rate difference separately", "The Rate difference tile shows gold won or lost from rate moves, apart from your making margin. If it is negative month after month, book earlier or ask for bigger advances.")
+] %}
+<div class="sop">
+  <div style="display:grid;gap:6px"><div class="page-head"><h1>Rate-risk SOP</h1></div>
+    <p class="muted" style="margin:0;max-width:68ch">Your making margin (touch, wastage, labour) is earned on every order. Rate movement can add to it or take it away. These steps protect the margin first, then let you choose how much rate risk to take.</p></div>
+  <ol>{% for when, title, text in steps %}<li><span class="when">{{ when }}</span><div><h3>{{ title }}</h3><p>{{ text }}</p></div></li>{% endfor %}</ol>
+  <div class="note">No one can reliably predict the gold rate. Booking early gives up possible extra grams in exchange for a guaranteed margin. Leaving money unbooked can earn more, and it can also wipe out the margin. The limits under <a href="{{ url_for('main.settings') }}">Settings</a> decide how much of that risk you accept.</div>
+</div>
+{% endblock %}

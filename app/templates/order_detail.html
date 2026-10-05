@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "macros.html" import ln, csrf, gold_desc, delete_btn, gold_items %}
+{% block title %}Order {{ o.order_no }} · Bullion Register{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Order {{ o.order_no }}</h1>
+  <span class="pill {{ 'settled' if c.settled else 'open' }}">{{ ('Settled ' ~ (o.settled_date|fdate)) if c.settled else 'With karigar' }}</span>
+  <div class="actions">
+    <a class="btn sm" href="{{ url_for('main.edit_order', order_id=o.id) }}">Edit</a>
+    {% if c.settled %}<form class="inline" method="post" action="{{ url_for('main.reopen', order_id=o.id) }}" data-confirm="Reopen this order? Its advances go back to being held.">{{ csrf() }}<button class="btn sm" type="submit">Reopen</button></form>{% endif %}
+    {{ delete_btn(url_for('main.delete_order', order_id=o.id), 'Delete order', confirm='Delete order ' ~ o.order_no ~ ' and all its advances? This cannot be undone.') }}
+  </div>
+  <span class="meta">{{ o.date|fdate }} · {{ o.customer or '—' }} · {{ o.item or '—' }} · {{ c.weight|g3 }} g {{ o.karat_label }} · karigar {{ o.karigar or '—' }}</span>
+</div>
+
+<div class="detail-grid">
+  <section class="box">
+    <h3>Making margin</h3>
+    {{ ln('Karigar fine issued', (c.k_fine|g3) ~ ' g', (c.weight|g3) ~ ' × (' ~ o.k_touch ~ '% + ' ~ o.k_wastage ~ '%)') }}
+    {{ ln('Customer fine billed', (c.cust_fine|g3) ~ ' g', (c.weight|g3) ~ ' × (1 + ' ~ o.c_wastage ~ '%) × ' ~ ('%.2f'|format(c.c_touch)) ~ '%') }}
+    {% if o.labour_to_gold and c.tracked %}{{ ln('Labour margin as gold', (c.labour_gold|sg3) ~ ' g', (c.labour_margin|inr) ~ ' ÷ ₹' ~ ('{:,.0f}'.format(c.rate24))) }}{% endif %}
+    {{ ln('Planned gain at order rate', (c.planned_gain|sg3) ~ ' g') }}
+    {{ ln('Labour: customer − karigar', c.labour_margin|inr, (c.cust_labour|inr) ~ ' − ' ~ (c.kar_labour|inr)) }}
+    {% if o.notes %}<p class="muted" style="margin:0;font-size:13px">{{ o.notes }}</p>{% endif %}
+  </section>
+
+  {% if not c.tracked %}
+  <section class="box">
+    <h3>Advances not tracked</h3>
+    <p class="muted" style="margin:0">This order has no 24K order rate. <a href="{{ url_for('main.edit_order', order_id=o.id) }}">Add it</a> to record advances, book gold in parts and see rate risk.</p>
+    {% if not c.settled %}<form method="post" action="{{ url_for('main.settle', order_id=o.id) }}">{{ csrf() }}<button class="btn sm gold" type="submit">Settle order</button></form>{% endif %}
+  </section>
+  {% else %}
+  <section class="box">
+    <h3>Customer advances</h3>
+    {{ ln('Bill (gold ' ~ (c.gold_value|inr) ~ ' + labour ' ~ (c.cust_labour|inr) ~ ')', c.bill|inr) }}
+    {{ ln('Cash received', c.cash_received|inr) }}
+    {{ ln('Gold received', (c.gold_in_fine|g3) ~ ' g = ' ~ (c.gold_in_value|inr), ('credited below the order rate · exchange margin ' ~ (c.exchange_g|sg3) ~ ' g') if c.exchange_g > 0.0005 else '') }}
+    {{ ln('Credit owed to customer' if c.due < -0.5 else 'Balance due', (c.due|abs)|inr) }}
+    <div class="entries">
+      {% for p in o.payments %}<div><span>{{ p.date|fdate }} · {{ p.note }}</span><span>{{ p.amount|inr }} {{ delete_btn(url_for('main.delete_child', order_id=o.id, kind='payment', child_id=p.id), '✕', 'x') }}</span></div>{% endfor %}
+      {% for g in o.gold_receipts %}<div><span>{{ g.date|fdate }} · {{ gold_desc(g) }}</span><span>{{ g.fine|g3 }} g ({{ (g.fine * (g.credit_rate or c.rate24))|inr }}) {{ delete_btn(url_for('main.delete_child', order_id=o.id, kind='gold', child_id=g.id), '✕', 'x') }}</span></div>{% endfor %}
+      {% if not o.payments and not o.gold_receipts %}<div class="muted">No advance yet</div>{% endif %}
+    </div>
+    {% if not c.settled %}
+    <div class="row"><a class="btn sm adv" href="{{ url_for('main.dashboard', order=o.id, kind='cash') }}#quick-form">Record cash</a><a class="btn sm adv" href="#add-old-gold">Add old gold</a></div>
+    {% endif %}
+  </section>
+
+  {% if not c.settled %}
+  <form class="box" id="add-old-gold" method="post" action="{{ url_for('main.record_advance') }}" style="grid-column:1/-1">
+    {{ csrf() }}
+    <input type="hidden" name="order_id" value="{{ o.id }}">
+    <input type="hidden" name="kind" value="gold">
+    <input type="hidden" name="next" value="{{ url_for('main.order_detail', order_id=o.id) }}">
+    <div class="row"><h3>Add old gold received</h3><span class="spacer"></span>
+      <label for="og-date" class="muted" style="font-size:13px">Date</label><input id="og-date" name="date" type="date" value="{{ today }}" style="border:1px solid var(--line);background:var(--bg);border-radius:6px;padding:5px 8px"></div>
+    {{ gold_items('', o.rate24) }}
+    <div><button class="btn adv" type="submit">Save old gold</button></div>
+  </form>
+  {% endif %}
+
+  <section class="box">
+    <h3>Converted into gold</h3>
+    {{ ln('To convert into gold', c.to_convert|inr, '= ' ~ (c.target_g|g3) ~ ' g at order rate ₹' ~ ('{:,.0f}'.format(c.rate24))) }}
+    {{ ln('Gold received', (c.gold_in_fine|g3) ~ ' g') }}
+    {{ ln('Gold booked with cash', (c.booked_g|g3) ~ ' g', (c.cash_booked|inr) ~ ' booked · ' ~ (c.cash_unbooked|inr) ~ ' cash not booked') }}
+    {{ ln('Moved to own reserve' if c.settled else 'Held as advance', (c.locked_g|g3) ~ ' g') }}
+    {{ ln('Still to book', c.uncovered|inr, ('≈ ' ~ ((c.uncovered / c.mark_rate)|g3) ~ ' g at ₹' ~ ('{:,.0f}'.format(c.mark_rate))) if c.uncovered and c.mark_rate else '') }}
+    {% if c.break_even %}{{ ln('Break-even rate', '₹' ~ '{:,.0f}'.format(c.break_even), 'above this the order returns less gold than the karigar used') }}{% endif %}
+    <div class="entries">
+      {% for b in o.bookings %}<div><span>{{ b.date|fdate }} · {{ b.amount|inr }} @ ₹{{ '{:,.0f}'.format(b.rate) }}</span><span>{{ b.grams|g3 }} g {{ delete_btn(url_for('main.delete_child', order_id=o.id, kind='booking', child_id=b.id), '✕', 'x') }}</span></div>{% else %}<div class="muted">Nothing booked yet</div>{% endfor %}
+    </div>
+    {% if c.uncovered >= 1 %}
+    <form class="mini" method="post" action="{{ url_for('main.book_gold', order_id=o.id) }}">
+      {{ csrf() }}
+      <div class="field"><label for="bk-date">Date</label><input id="bk-date" name="date" type="date" value="{{ today }}"></div>
+      <div class="field"><label for="bk-amt">Cash to book ₹</label><input id="bk-amt" name="amount" type="number" min="0" step="1" value="{{ ([c.cash_unbooked or c.uncovered, c.uncovered]|min)|round|int }}"></div>
+      <div class="field"><label for="bk-rate">Rate ₹/g</label><input id="bk-rate" name="rate" type="number" min="0" step="0.01" value="{{ rate_now or '' }}"></div>
+      <button class="btn sm adv" type="submit">Book gold</button>
+    </form>
+    {% else %}<span class="pill settled" style="justify-self:start">Fully covered</span>{% endif %}
+  </section>
+
+  <section class="box">
+    <h3>{{ 'Result' if c.settled else 'If it settled today' }}</h3>
+    {{ ln('Gold back from customer', (c.proj_back_g|g3) ~ ' g', ((c.locked_g|g3) ~ ' in advances + ' ~ (c.uncovered|inr) ~ ' ÷ ₹' ~ ('{:,.0f}'.format(c.mark_rate))) if c.uncovered > 0 else 'all in advances') }}
+    {{ ln('Less karigar fine', '−' ~ (c.k_fine|g3) ~ ' g') }}
+    {{ ln('Gold gain', (c.gain|sg3) ~ ' g') }}
+    {{ ln('of which rate difference', (c.rate_diff_g|sg3) ~ ' g', 'vs planned ' ~ (c.planned_gain|sg3) ~ ' g') }}
+    {% if not c.settled %}
+    <form class="mini" method="post" action="{{ url_for('main.settle', order_id=o.id) }}" style="border-top:1px dashed var(--line);padding-top:8px">
+      {{ csrf() }}
+      <div class="field"><label for="st-date">Settle date</label><input id="st-date" name="date" type="date" value="{{ today }}"></div>
+      <div class="field"><label for="st-amt">Balance cash received ₹</label><input id="st-amt" name="amount" type="number" min="0" step="1" value="{{ [c.due,0]|max|round|int }}"></div>
+      {% if c.uncovered >= 1 %}<div class="field"><label for="st-rate">Rate paid ₹/g</label><input id="st-rate" name="rate" type="number" min="0" step="0.01" value="{{ rate_now or '' }}"></div>{% endif %}
+      <button class="btn sm gold" type="submit">Settle order</button>
+    </form>
+    <p class="muted" style="margin:0;font-size:12px">Settling moves {{ c.locked_g|g3 }} g of advances into your own reserve{% if c.uncovered >= 1 %} and books the remaining {{ c.uncovered|inr }} at the rate you enter{% endif %}.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

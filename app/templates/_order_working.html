@@ -1,0 +1,29 @@
+{% from "macros.html" import ln %}
+<div id="sugg" hidden data-cash="{{ sugg_cash }}" data-book="{{ sugg_book }}" data-rate="{{ ('%g'|format(c.rate24)) if c.rate24 else '' }}"></div>
+{% if not c.weight %}
+<p class="muted" style="margin:0">Enter the net weight and order rate to see the fine gold for the karigar, the customer bill, the advance and the gold you keep.</p>
+{% else %}
+{{ ln('Karigar fine issued', (c.k_fine|g3) ~ ' g', (c.weight|g3) ~ ' × ' ~ ('%.2f'|format(c.k_pct)) ~ '%') }}
+{{ ln('Customer fine billed', (c.cust_fine|g3) ~ ' g', (c.weight|g3) ~ ' × ' ~ ('%.4f'|format(1 + v.c_wastage/100)) ~ ' × ' ~ ('%.2f'|format(c.c_touch)) ~ '%') }}
+{{ ln('Labour margin', c.labour_margin|inr, '(' ~ ('%g'|format(v.c_labour)) ~ ' − ' ~ ('%g'|format(v.k_labour)) ~ ') ₹/g × ' ~ (c.weight|g3) ~ ' g') }}
+{% if v.c_mode == 'rate' and not c.by_rate %}<div class="warnbox">Enter both the order rate and the purity rate to price by rate.</div>{% endif %}
+<div class="result"><span class="lbl">Gold you keep at the order rate</span>
+  <span class="gain {{ 'pos' if c.planned_gain >= 0 else 'neg' }}">{{ c.planned_gain|sg3 }} g</span>
+  {% if c.k_fine %}<span class="muted" style="font-size:13px">{{ '%.2f'|format(c.planned_gain / c.k_fine * 100) }}% on gold issued</span>{% endif %}
+</div>
+{% if c.tracked %}
+  {{ ln('Customer bill', c.bill|inr, 'gold ' ~ (c.gold_value|inr) ~ ' + labour ' ~ (c.cust_labour|inr)) }}
+  {% if not editing %}
+    {% if gin_items %}{{ ln('Old gold received (' ~ gin_items|length ~ ' item' ~ ('s' if gin_items|length != 1 else '') ~ ')', (c.gold_in_fine|g3) ~ ' g fine', 'worth ' ~ (c.gold_in_value|inr) ~ ((' · bought below the order rate, you keep ' ~ (c.exchange_g|sg3) ~ ' g extra') if c.exchange_g > 0.0005 else '')) }}{% endif %}
+    {{ ln('Total advance', c.received|inr, (('%.0f'|format(c.received / c.bill * 100)) ~ '% of bill') if c.bill else '') }}
+    {{ ln('Held as advance gold', (c.locked_g|g3) ~ ' g', 'received ' ~ (c.gold_in_fine|g3) ~ ' + booked ' ~ (c.booked_g|g3)) }}
+    {{ ln('Still to book after today', c.uncovered|inr, ('≈ ' ~ ((c.uncovered / c.rate24)|g3) ~ ' g exposed to rate') if c.uncovered else '') }}
+    {% if c.break_even %}{{ ln('Break-even rate', '₹' ~ '{:,.0f}'.format(c.break_even), ((c.break_even - c.rate24) / c.rate24 * 100)|pct ~ ' from the order rate') }}{% endif %}
+    {% if c.bill and c.received < c.bill * s.adv_pct / 100 - 1 %}<div class="warnbox">The advance is below your SOP minimum of {{ s.adv_pct|round|int }}%.</div>{% endif %}
+  {% endif %}
+{% else %}
+  <div class="warnbox">Enter the order rate. Without it the app can't track advances or rate risk.</div>
+{% endif %}
+{% if c.k_fine > avail + 0.000001 %}<div class="warnbox">Only {{ avail|g3 }} g is in your own reserve. This order needs {{ c.k_fine|g3 }} g{% if adv_total %} (customer advances hold another {{ adv_total|g3 }} g){% endif %}.</div>{% endif %}
+{% if c.planned_gain < 0 %}<div class="warnbox">The customer is billed less fine gold than the karigar is issued. Check the touch and wastage figures.</div>{% endif %}
+{% endif %}

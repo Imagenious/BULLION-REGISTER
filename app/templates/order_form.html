@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, gold_items %}
+{% block title %}{{ 'Edit order ' ~ editing.order_no if editing else 'New order' }} · Bullion Register{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{{ 'Edit order ' ~ editing.order_no if editing else 'New order' }}</h1></div>
+{% if error %}<div class="error-box" role="alert">{{ error }}</div>{% endif %}
+<form id="order-form" class="form-grid" method="post" autocomplete="off"
+      data-preview="{{ url_for('main.preview_order') }}" data-touch='{{ settings.touch|tojson }}'>
+  {{ csrf() }}
+  {% if editing %}<input type="hidden" name="editing" value="{{ editing.id }}">{% endif %}
+  <div class="stack">
+    <fieldset>
+      <legend>Order</legend>
+      <div class="fields">
+        <div class="field"><label for="order_no">Order number</label><input id="order_no" name="order_no" required value="{{ v.order_no or '' }}" placeholder="e.g. ORD-1042"></div>
+        <div class="field"><label for="date">Order date</label><input id="date" name="date" type="date" required value="{{ v.date or '' }}"></div>
+        <div class="field"><label for="customer">Customer</label><input id="customer" name="customer" value="{{ v.customer or '' }}"></div>
+        <div class="field"><label for="item">Item</label><input id="item" name="item" value="{{ v.item or '' }}" placeholder="e.g. Necklace"></div>
+        <div class="field"><label for="karigar">Karigar</label><input id="karigar" name="karigar" value="{{ v.karigar or '' }}"></div>
+        <div class="field"><label for="weight">Net gold weight (g)</label><input id="weight" name="weight" type="number" step="0.001" min="0" required value="{{ v.weight or '' }}"></div>
+        <div class="field"><label for="karat">Purity</label>
+          <select id="karat" name="karat">
+            {% for k, label in [('24','24K'),('22','22K'),('20','20K'),('18','18K'),('14','14K'),('custom','Custom')] %}
+            <option value="{{ k }}" {% if (v.karat or '22')|string == k %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select></div>
+        <div class="field"><label for="rate24">Order rate, 24K (₹/g)</label><input id="rate24" name="rate24" type="number" step="0.01" min="0" required value="{{ v.rate24 or '' }}" placeholder="fixed for customer"></div>
+      </div>
+      <p class="fs-note" style="margin:0">The order rate is the 24K rate you fixed with the customer. Rate differences and gold credits are measured against it.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Karigar cost (paid in pure gold)</legend>
+      <p class="fs-note">Karigar fine = weight × (touch % + wastage %).</p>
+      <div class="fields">
+        <div class="field"><label for="k_touch">Karigar touch %</label><input id="k_touch" name="k_touch" type="number" step="0.01" min="0" required value="{{ v.k_touch }}"></div>
+        <div class="field"><label for="k_wastage">Karigar wastage %</label><input id="k_wastage" name="k_wastage" type="number" step="0.01" min="0" value="{{ v.k_wastage or 0 }}"></div>
+        <div class="field"><label for="k_labour">Karigar labour (₹/g)</label><input id="k_labour" name="k_labour" type="number" step="0.01" min="0" value="{{ v.k_labour or 0 }}"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Customer billing (at the order's purity)</legend>
+      <div class="row"><span class="lbl">Price by</span>
+        <div class="seg" role="radiogroup" aria-label="Customer pricing">
+          <label><input type="radio" name="c_mode" value="touch" {% if v.c_mode != 'rate' %}checked{% endif %}><span>Purity %</span></label>
+          <label><input type="radio" name="c_mode" value="rate" {% if v.c_mode == 'rate' %}checked{% endif %}><span>Purity rate ₹/g</span></label>
+        </div>
+      </div>
+      <div class="fields">
+        <div class="field" data-mode="touch"><label for="c_touch">Purity charged %</label><input id="c_touch" name="c_touch" type="number" step="0.01" min="0" value="{{ v.c_touch }}"></div>
+        <div class="field" data-mode="rate"><label for="c_rate">Rate for this purity (₹/g)</label><input id="c_rate" name="c_rate" type="number" step="0.01" min="0" value="{{ v.c_rate or '' }}"></div>
+        <div class="field"><label for="c_wastage">Wastage / VA %</label><input id="c_wastage" name="c_wastage" type="number" step="0.01" min="0" value="{{ v.c_wastage or 0 }}"></div>
+        <div class="field"><label for="c_labour">Labour (₹/g)</label><input id="c_labour" name="c_labour" type="number" step="0.01" min="0" value="{{ v.c_labour or 0 }}"></div>
+      </div>
+      <label class="check"><input type="checkbox" name="labour_to_gold" {% if v.labour_to_gold in (True, 'on', 'true') %}checked{% endif %}> <span>Also convert the labour margin into gold (booked along with the gold money)</span></label>
+    </fieldset>
+
+    {% if not editing %}
+    <fieldset>
+      <legend>Advance at booking</legend>
+      <p class="subhead">Old gold from the customer (optional)</p>
+      {{ gold_items('gin_', v.rate24 or '', gin_rows) }}
+      <p class="subhead">Cash</p>
+      <div class="fields">
+        <div class="field"><label for="adv_cash">Cash advance (₹)</label><input id="adv_cash" name="adv_cash" type="number" step="1" min="0" value="{{ v.adv_cash or '' }}"></div>
+        <div class="field" style="align-self:end"><button type="button" class="btn sm" id="btn-sugg">Use SOP minimum</button></div>
+      </div>
+      <label class="check"><input type="checkbox" id="book_adv" name="book_adv" {% if v.book_adv in (True, 'on') %}checked{% endif %}> <span>Book gold with the cash advance today (recommended by the SOP)</span></label>
+      <div class="fields" id="book-fields">
+        <div class="field"><label for="book_amt">Cash to book (₹)</label><input id="book_amt" name="book_amt" type="number" step="1" min="0" value="{{ v.book_amt or '' }}"></div>
+        <div class="field"><label for="book_rate">Rate paid, 24K (₹/g)</label><input id="book_rate" name="book_rate" type="number" step="0.01" min="0" value="{{ v.book_rate or '' }}" placeholder="order rate"></div>
+      </div>
+      <p class="fs-note" style="margin:0">Gold received and gold booked are held as customer advances, not in your own reserve, until the order is settled.</p>
+    </fieldset>
+    {% endif %}
+
+    <fieldset>
+      <legend>Notes</legend>
+      <div class="field wide"><label for="notes">Anything you want to remember about this order</label><textarea id="notes" name="notes" rows="2">{{ v.notes or '' }}</textarea></div>
+    </fieldset>
+  </div>
+
+  <aside class="calc" aria-live="polite">
+    <h3>{{ 'Editing ' ~ editing.order_no if editing else 'Order working' }}</h3>
+    <div id="calc-body"><p class="muted" style="margin:0">Enter the net weight and order rate to see the working.</p></div>
+    <div class="row">
+      <button type="submit" class="btn gold">{{ 'Save changes' if editing else 'Deploy gold to order' }}</button>
+      <a class="btn" href="{{ url_for('main.order_detail', order_id=editing.id) if editing else url_for('main.orders') }}">Cancel</a>
+    </div>
+  </aside>
+</form>
+{% endblock %}

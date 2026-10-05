@@ -1,0 +1,53 @@
+{% macro ln(k, v, f='') -%}
+<div class="ln"><span class="k">{{ k }}</span><span class="v">{{ v }}</span>{% if f %}<span class="f">{{ f }}</span>{% endif %}</div>
+{%- endmacro %}
+
+{% macro csrf() -%}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{%- endmacro %}
+
+{% macro gold_desc(g) -%}
+{{ g.note or g.type }} · {{ g.gross|g3 }} g{% if g.less %} − {{ g.less|g3 }} stones{% endif %} × {{ '%g'|format(g.purity_pct) }}%{% if g.melt %} − {{ '%g'|format(g.melt) }}% melt{% endif %}{% if g.credit_rate %} @ ₹{{ '{:,.0f}'.format(g.credit_rate) }}{% endif %}
+{%- endmacro %}
+
+{% macro covered(c, s) -%}
+{% if not c.tracked %}<span class="muted">No order rate</span>{% else %}
+<span class="meter"><b style="width:{{ c.covered_pct or 0 }}%"></b></span><span class="num">{{ (c.covered_pct or 0)|round|int }}%</span>
+{% if c.uncovered >= 1 and c.move_pct is not none %}
+  {% if c.break_even and s.today_rate >= c.break_even * 0.97 %} <span class="pill crit">Near break-even</span>
+  {% elif c.move_pct >= s.alert_pct %} <span class="pill warn">Rate {{ c.move_pct|pct }}</span>
+  {% elif c.move_pct <= -s.alert_pct %} <span class="pill settled">Rate {{ c.move_pct|pct }}</span>{% endif %}
+{% endif %}{% endif %}
+{%- endmacro %}
+
+{% macro gold_items(prefix='', rate='', rows=None) -%}
+{% set rate = ('%g'|format(rate|float)) if (rate|float) else '' %}
+{% set rows = rows or [{'desc': '', 'net': '', 'purity': '', 'rate': rate}] %}
+{# Old gold received: one row per item. net weight × purity % = fine; fine × buying rate = value. #}
+<div class="gitems" data-gold-items data-default-rate="{{ rate }}">
+  <p class="fs-note" style="margin:0">Net weight is after removing stones and impurities. <b>Fine = net weight × purity %</b>, <b>value = fine × buying rate</b> (24K ₹/g; leave it as the order rate to credit gram for gram).</p>
+  <div class="tbl-wrap">
+    <table class="gtable">
+      <thead><tr><th>Item</th><th class="n">Net weight (g)</th><th class="n">Purity %</th><th class="n">Buying rate ₹/g</th><th class="n">Fine gold (g)</th><th class="n">Value ₹</th><th><span class="sr-only">Remove</span></th></tr></thead>
+      <tbody>
+        {% for r in rows %}
+        <tr data-row>
+          <td><input name="{{ prefix }}item_desc" aria-label="Item description" placeholder="e.g. Bangle" value="{{ r.desc }}"></td>
+          <td class="n"><input name="{{ prefix }}item_net" type="number" step="0.001" min="0" aria-label="Net weight in grams" placeholder="0.000" value="{{ r.net }}"></td>
+          <td class="n"><input name="{{ prefix }}item_purity" type="number" step="0.01" min="0" max="1000" list="kt-purities" aria-label="Purity %" placeholder="e.g. 70" value="{{ r.purity }}"></td>
+          <td class="n"><input name="{{ prefix }}item_rate" type="number" step="0.01" min="0" aria-label="Buying rate, 24K rupees per gram" value="{{ r.rate }}"></td>
+          <td class="n num" data-fine>—</td>
+          <td class="n num" data-value>—</td>
+          <td><button type="button" class="x" data-remove-item aria-label="Remove this item">✕</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr><td>Total · <span data-count>0</span> item(s)</td><td class="n num" data-t="net">0.000</td><td></td><td></td><td class="n num" data-t="fine">0.000</td><td class="n num" data-t="value">₹0</td><td></td></tr></tfoot>
+    </table>
+  </div>
+  <button type="button" class="btn sm" data-add-item style="justify-self:start">+ Add another item</button>
+  <datalist id="kt-purities"><option value="99.9">24K</option><option value="91.6">22K</option><option value="83.3">20K</option><option value="75">18K</option><option value="58.5">14K</option></datalist>
+</div>
+{%- endmacro %}
+
+{% macro delete_btn(action, label='Delete', cls='btn sm danger', confirm='Delete this entry?') -%}
+<form class="inline" method="post" action="{{ action }}" data-confirm="{{ confirm }}">{{ csrf() }}<button class="{{ cls }}" type="submit" aria-label="{{ label }}">{{ label }}</button></form>
+{%- endmacro %}

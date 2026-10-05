@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Sign in · Bullion Register{% endblock %}
+{% block content %}
+<div class="auth">
+  <form class="box" method="post">
+    {{ csrf() }}
+    <h1>Bullion Register</h1>
+    <p class="muted" style="margin:0 0 8px">Sign in to your gold book.</p>
+    {% if error %}<div class="error-box" role="alert">{{ error }}</div>{% endif %}
+    <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username" required autofocus></div>
+    <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn primary" type="submit">Sign in</button>
+  </form>
+</div>
+{% endblock %}

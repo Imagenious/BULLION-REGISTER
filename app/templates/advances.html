@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import gold_desc %}
+{% block title %}Advances · Bullion Register{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Advances register</h1>
+  <span class="meta">Held for open orders: <b class="num advc">{{ totals.advance_g|g3 }} g</b> gold · <b class="num">{{ totals.cash_unbooked|inr }}</b> cash not booked</span></div>
+<div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Order</th><th>Customer</th><th class="n">Bill ₹</th><th class="n">Cash received</th><th class="n">Gold received (fine g)</th><th class="n">Gold booked (g)</th><th class="n">Advance gold (g)</th><th class="n">Cash not booked</th><th class="n">Still to book</th><th class="n">Balance due</th></tr></thead>
+    <tbody>
+    {% for o, c in rows %}
+      <tr><td><a class="btn sm" href="{{ url_for('main.order_detail', order_id=o.id) }}">{{ o.order_no }}</a></td><td>{{ o.customer }}</td>
+        <td class="n">{{ c.bill|inr }}</td><td class="n">{{ c.cash_received|inr }}</td><td class="n">{{ c.gold_in_fine|g3 }}</td><td class="n">{{ c.booked_g|g3 }}</td>
+        <td class="n advc"><b>{{ c.advance_g|g3 }}</b></td><td class="n {{ 'neg' if c.cash_unbooked >= 1 }}">{{ c.cash_unbooked|inr }}</td><td class="n">{{ c.uncovered|inr }}</td><td class="n">{{ c.due|inr }}</td></tr>
+    {% else %}
+      <tr><td colspan="10" class="empty">No open orders with advances.</td></tr>
+    {% endfor %}
+    </tbody>
+    {% if rows %}
+    <tfoot><tr><td colspan="2">Total · {{ rows|length }} open</td>
+      <td class="n">{{ rows|sum(attribute='1.bill')|inr }}</td><td class="n">{{ rows|sum(attribute='1.cash_received')|inr }}</td>
+      <td class="n">{{ rows|sum(attribute='1.gold_in_fine')|g3 }}</td><td class="n">{{ rows|sum(attribute='1.booked_g')|g3 }}</td>
+      <td class="n advc">{{ rows|sum(attribute='1.advance_g')|g3 }}</td><td class="n">{{ rows|sum(attribute='1.cash_unbooked')|inr }}</td>
+      <td class="n">{{ rows|sum(attribute='1.uncovered')|inr }}</td><td class="n">{{ rows|sum(attribute='1.due')|inr }}</td></tr></tfoot>
+    {% endif %}
+  </table>
+</div>
+
+<h2 class="section-title">Advance entries</h2>
+<div class="tbl-wrap">
+  <table>
+    <thead><tr><th>Date</th><th>Order</th><th>Type</th><th>Detail</th><th class="n">₹</th><th class="n">Fine g</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for e in entries %}
+      <tr><td>{{ e.date|fdate }}</td><td><a href="{{ url_for('main.order_detail', order_id=e.o.id) }}">{{ e.o.order_no }}</a></td><td>{{ e.type }}</td>
+        <td class="wrap">{% if e.type == 'Gold received' %}{{ gold_desc(e.detail) }}{% if e.detail.credit_rate %} · credited @ ₹{{ '{:,.0f}'.format(e.detail.credit_rate) }}{% endif %}{% else %}{{ e.detail }}{% endif %}</td>
+        <td class="n">{{ e.amount|inr }}</td><td class="n">{{ e.g|g3 if e.g is not none else '' }}</td>
+        <td>{% if e.type == 'Cash received' %}<span class="muted">—</span>{% elif e.settled %}<span class="pill settled">In reserve</span>{% else %}<span class="pill adv">Held</span>{% endif %}</td></tr>
+    {% else %}
+      <tr><td colspan="7" class="empty">No advance entries yet. Use <b>Record an advance</b> on the dashboard.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
