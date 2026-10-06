@@ -138,6 +138,27 @@ def test_settlement_moves_advances_into_own_reserve():
     assert c.reserve_in == approx(31)
 
 
+def test_profit_breakdown_adds_up():
+    # 50 g 22K: making margin, old gold bought below the order rate, rest booked above it, labour kept as cash
+    o = order(weight=50, rate24=10000, c_touch=91.6, c_wastage=8, k_touch=92, k_wastage=2, c_labour=500, k_labour=300,
+              status="settled", gold_receipts=[NS(fine=10.0, credit_rate=9800)],
+              bookings=[NS(amount=494640 - 98000, rate=10200)])
+    c = calc.order_calc(o, today_rate=10300)
+    assert c.making_g == approx(2.464)
+    assert c.exchange_g == approx(0.2)
+    assert c.making_g + c.labour_gold + c.exchange_g + c.market_g == approx(c.gain)
+    assert c.labour_cash == approx(10000)
+    assert c.profit_inr == approx(c.gain * 10300 + 10000, 0.5)
+
+
+def test_labour_converted_to_gold_is_not_counted_twice():
+    o = order(weight=40, rate24=10000, c_touch=83.3, c_wastage=10, k_touch=84, k_wastage=2, c_labour=500, k_labour=300,
+              labour_to_gold=True)
+    c = calc.order_calc(o)
+    assert c.labour_cash == 0
+    assert c.profit_inr == approx((2.252 + 0.8) * 10000, 1)
+
+
 def test_book_share_excludes_labour():
     o = order(weight=10, rate24=10000, c_touch=91.6, c_labour=500, k_labour=300)
     c = calc.order_calc(o)

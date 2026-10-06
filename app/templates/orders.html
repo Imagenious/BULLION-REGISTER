@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import covered %}
+{% from "macros.html" import covered, profit_cell %}
 {% block title %}Orders · Bullion Register{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -20,27 +20,25 @@
 <div class="tbl-wrap">
   <table>
     <thead><tr>
-      <th>Order</th><th>Date</th><th>Customer</th><th class="n">Wt (g)</th><th>Purity</th><th class="n">Order rate</th>
-      <th class="n">Issued to karigar</th><th class="n">Billed fine</th><th class="n">Advance gold</th><th>Covered</th><th class="n">Gold gain</th><th class="n">Rate diff</th><th>Status</th>
+      <th>Order</th><th>Date</th><th>Customer</th><th class="n profit-col">Profit</th><th class="n">Wt (g)</th><th>Purity</th><th class="n">Order rate</th>
+      <th class="n">Issued to karigar</th><th class="n">Billed fine</th><th class="n">Advance gold</th><th>Covered</th><th>Status</th>
     </tr></thead>
     <tbody>
     {% for o, c in rows %}
       <tr>
         <td><a class="btn sm" href="{{ url_for('main.order_detail', order_id=o.id) }}">{{ o.order_no }}</a></td>
-        <td>{{ o.date|fdate }}</td><td>{{ o.customer }}</td><td class="n">{{ c.weight|g3 }}</td><td>{{ o.karat_label }}</td>
+        <td>{{ o.date|fdate }}</td><td>{{ o.customer }}</td><td class="n profit-col">{{ profit_cell(c) }}</td><td class="n">{{ c.weight|g3 }}</td><td>{{ o.karat_label }}</td>
         <td class="n">{{ c.rate24|inr if c.tracked else '—' }}</td>
         <td class="n">{{ c.k_fine|g3 }}</td><td class="n">{{ c.target_g|g3 }}</td>
         <td class="n">{% if c.settled %}<span class="muted">in reserve</span>{% elif c.tracked %}<span class="advc">{{ c.advance_g|g3 }}</span>{% else %}—{% endif %}</td>
         <td>{{ covered(c, settings) }}</td>
-        <td class="n {{ 'pos' if c.gain >= 0 else 'neg' }}">{{ c.gain|sg3 }}</td>
-        <td class="n {{ 'pos' if c.rate_diff_g > 0.0005 else ('neg' if c.rate_diff_g < -0.0005 else '') }}">{{ c.rate_diff_g|sg3 if c.tracked else '—' }}</td>
         <td><span class="pill {{ 'settled' if c.settled else 'open' }}">{{ ('Settled ' ~ (o.settled_date|fdate)) if c.settled else 'With karigar' }}</span></td>
       </tr>
     {% else %}
-      <tr><td colspan="13" class="empty">{% if q or flt != 'all' %}No orders match this filter.{% else %}No orders yet. Use <b>+ New order</b> to deploy gold to your first order.{% endif %}</td></tr>
+      <tr><td colspan="12" class="empty">{% if q or flt != 'all' %}No orders match this filter.{% else %}No orders yet. Use <b>+ New order</b> to deploy gold to your first order.{% endif %}</td></tr>
     {% endfor %}
     </tbody>
   </table>
 </div>
-<p class="muted" style="margin:0;font-size:12.5px">Gold figures are fine (24K) grams. Advance gold = gold received from the customer + gold booked with their cash; it moves into your own reserve when the order settles. Open orders show the expected gain at today's rate.</p>
+<p class="muted" style="margin:0;font-size:12.5px">Gold figures are fine (24K) grams. Advance gold = gold received from the customer + gold booked with their cash; it moves into your own reserve when the order settles. Profit = gold you keep after paying the karigar (in fine grams), and its value at today's rate plus any labour kept as cash. Open orders show the expected profit if settled today; tap an order for the breakdown.</p>
 {% endblock %}

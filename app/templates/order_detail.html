@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import ln, csrf, gold_desc, delete_btn, gold_items %}
+{% from "macros.html" import ln, csrf, gold_desc, delete_btn, gold_items, profit_card %}
 {% block title %}Order {{ o.order_no }} · Bullion Register{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -12,6 +12,8 @@
   </div>
   <span class="meta">{{ o.date|fdate }} · {{ o.customer or '—' }} · {{ o.item or '—' }} · {{ c.weight|g3 }} g {{ o.karat_label }} · karigar {{ o.karigar or '—' }}</span>
 </div>
+
+{{ profit_card(c) }}
 
 <div class="detail-grid">
   <section class="box">

@@ -48,6 +48,35 @@
 </div>
 {%- endmacro %}
 
+{% macro profit_card(c) -%}
+{# Profit for one order: total first, then where it came from. #}
+{% set neg = c.gain < -0.0005 %}
+<section class="profit-card {{ 'neg' if neg }}" aria-label="Profit on this order">
+  <div class="pc-main">
+    <span class="lbl">{{ 'Profit on this order' if c.settled else 'Expected profit if settled today' }}</span>
+    <div class="pc-figs">
+      <span class="pc-big">{{ c.gain|sg3 }}<small> g fine</small></span>
+      {% if c.mark_rate %}<span class="pc-inr">≈ {{ c.profit_inr|inr }}</span>{% endif %}
+    </div>
+    <span class="pc-note">
+      {% if c.mark_rate %}Gold valued at ₹{{ '{:,.0f}'.format(c.mark_rate) }}/g{% if c.labour_cash %} + labour {{ c.labour_cash|inr }} kept as cash{% endif %}.{% endif %}
+      {% if c.profit_pct is not none %} {{ '%.1f'|format(c.profit_pct) }}% on the gold issued to the karigar.{% endif %}
+    </span>
+  </div>
+  <ul class="pc-parts">
+    <li><span>Making margin</span><b class="{{ 'pos' if c.making_g >= 0 else 'neg' }}">{{ c.making_g|sg3 }} g</b><small>purity + wastage charged vs karigar touch</small></li>
+    {% if c.labour_cash %}<li><span>Labour</span><b class="{{ 'pos' if c.labour_cash >= 0 else 'neg' }}">{{ c.labour_cash|inr }}</b><small>customer labour − karigar labour</small></li>
+    {% elif c.labour_gold %}<li><span>Labour (as gold)</span><b class="pos">{{ c.labour_gold|sg3 }} g</b><small>labour margin converted at the order rate</small></li>{% endif %}
+    {% if c.exchange_g > 0.0005 %}<li><span>Old-gold buying</span><b class="pos">{{ c.exchange_g|sg3 }} g</b><small>old gold bought below the order rate</small></li>{% endif %}
+    {% if c.tracked %}<li><span>Rate difference</span><b class="{{ 'pos' if c.market_g > 0.0005 else ('neg' if c.market_g < -0.0005 else '') }}">{{ c.market_g|sg3 }} g</b><small>{{ 'cash booked above/below the order rate' if c.settled else 'at today’s rate on money not yet booked' }}</small></li>{% endif %}
+  </ul>
+</section>
+{%- endmacro %}
+
+{% macro profit_cell(c) -%}
+<div class="profit-cell {{ 'neg' if c.gain < -0.0005 }}"><b>{{ c.gain|sg3 }} g</b>{% if c.mark_rate %}<span>≈ {{ c.profit_inr|inr }}</span>{% endif %}</div>
+{%- endmacro %}
+
 {% macro delete_btn(action, label='Delete', cls='btn sm danger', confirm='Delete this entry?') -%}
 <form class="inline" method="post" action="{{ action }}" data-confirm="{{ confirm }}">{{ csrf() }}<button class="{{ cls }}" type="submit" aria-label="{{ label }}">{{ label }}</button></form>
 {%- endmacro %}

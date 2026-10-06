@@ -154,6 +154,12 @@ class OrderCalc:
     move_pct: float | None
     covered_pct: float | None
     first_payment_date: str | None = None
+    # Profit, split by where it comes from (gold figures in fine grams):
+    making_g: float = 0.0        # customer fine − karigar fine (purity + wastage margin)
+    market_g: float = 0.0        # rate difference from booking customer cash later/earlier than the order rate
+    labour_cash: float = 0.0     # labour margin kept as rupees (0 when it is converted to gold)
+    profit_inr: float = 0.0      # gold gain valued at today's rate (or the order rate) + labour kept as cash
+    profit_pct: float | None = None  # gold gain as % of the gold issued to the karigar
 
 
 def _get(o: Any, name: str, default: Any = None) -> Any:
@@ -234,6 +240,11 @@ def order_calc(o: Any, today_rate: float = 0.0) -> OrderCalc:
         advance_g=advance_g, reserve_in=reserve_in, proj_back_g=proj_back_g, gain=gain,
         planned_gain=planned_gain, rate_diff_g=rate_diff_g, break_even=break_even, move_pct=move_pct,
         covered_pct=covered_pct, first_payment_date=pay_dates[0] if pay_dates else None,
+        making_g=cust_fine - k_fine,
+        market_g=rate_diff_g - exchange_g,
+        labour_cash=0.0 if (labour_to_gold and tracked) else labour_margin,
+        profit_inr=gain * mark_rate + (0.0 if (labour_to_gold and tracked) else labour_margin),
+        profit_pct=gain / k_fine * 100 if k_fine else None,
     )
 
 
@@ -266,6 +277,8 @@ class Totals:
     exposure_g: float = 0.0
     rate_diff: float = 0.0
     labour: float = 0.0
+    profit_inr_settled: float = 0.0
+    profit_inr_open: float = 0.0
 
     @property
     def available(self) -> float:
@@ -301,10 +314,12 @@ def totals(ledger: Iterable[Any], calcs: Iterable[OrderCalc]) -> Totals:
             t.earned += c.gain
             t.rate_diff += c.rate_diff_g
             t.labour += c.labour_margin
+            t.profit_inr_settled += c.profit_inr
             t.settled_n += 1
         else:
             t.deployed += c.k_fine
             t.pending += c.gain
+            t.profit_inr_open += c.profit_inr
             t.open_n += 1
             t.advance_g += c.advance_g
             if c.tracked:

@@ -5,6 +5,7 @@
 <div class="auth">
   <form class="box" method="post">
     {{ csrf() }}
+    <img class="auth-logo" src="{{ url_for('static', filename='logo.webp') }}" alt="Store logo" width="96" height="96">
     <h1>Welcome</h1>
     <p class="muted" style="margin:0 0 8px">Create the owner account. You'll use it to sign in here and on the cloud copy.</p>
     {% if error %}<div class="error-box" role="alert">{{ error }}</div>{% endif %}

@@ -44,8 +44,8 @@
     <div class="tile"><span class="lbl">Advance gold booked</span><span class="v adv">{{ t.booked|g3 }} g</span><span class="h">Bought with customer cash</span></div>
     <div class="tile"><span class="lbl">Cash advances not booked</span><span class="v {{ 'warn' if t.cash_unbooked >= 1 else 'good' }}">{{ t.cash_unbooked|inr }}</span><span class="h">Cash in hand, not yet gold</span></div>
     <div class="tile"><span class="lbl">Still to book</span><span class="v {{ 'crit' if t.exposure_g > settings.max_open_g else ('warn' if t.exposure_amt >= 1 else 'good') }}">{{ t.exposure_amt|inr }}</span><span class="h">{% if t.exposure_amt >= 1 %}≈ {{ t.exposure_g|g3 }} g exposed to rate{% else %}Every order is fully covered{% endif %}</span></div>
-    <div class="tile"><span class="lbl">Gold earned</span><span class="v good">{{ t.earned|sg3 }} g</span><span class="h">{{ t.settled_n }} settled · labour {{ t.labour|inr }}</span></div>
-    <div class="tile"><span class="lbl">Expected on open orders</span><span class="v gold">{{ t.pending|sg3 }} g</span><span class="h">{% if settings.today_rate %}At today's rate ₹{{ '{:,.0f}'.format(settings.today_rate) }}{% else %}At order rates{% endif %}</span></div>
+    <div class="tile"><span class="lbl">Profit earned (settled)</span><span class="v good">{{ t.earned|sg3 }} g</span><span class="h">≈ {{ t.profit_inr_settled|inr }} · {{ t.settled_n }} order{{ '' if t.settled_n == 1 else 's' }}</span></div>
+    <div class="tile"><span class="lbl">Expected profit (open)</span><span class="v gold">{{ t.pending|sg3 }} g</span><span class="h">≈ {{ t.profit_inr_open|inr }}{% if settings.today_rate %} at today's rate{% else %} at order rates{% endif %}</span></div>
     <div class="tile"><span class="lbl">Rate difference (settled)</span><span class="v {{ 'good' if t.rate_diff > 0.0005 else ('warn' if t.rate_diff < -0.0005 else '') }}">{{ t.rate_diff|sg3 }} g</span><span class="h">Gold won or lost from rate moves</span></div>
   </div>
 </section>

@@ -9,12 +9,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Marcellus&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+<link rel="icon" href="{{ url_for('static', filename='logo.webp') }}" type="image/webp">
 </head>
 <body>
-{% if session.get('user_id') %}
+{% if session.get('user_id') and request.endpoint not in ('auth.login', 'auth.setup') %}
 <header class="topbar">
   <div class="inner">
-    <a class="brand" href="{{ url_for('main.dashboard') }}">Bullion Register</a>
+    <a class="brand" href="{{ url_for('main.dashboard') }}"><img class="brand-logo" src="{{ url_for('static', filename='logo.webp') }}" alt="" width="34" height="34"><span>Bullion Register</span></a>
     <div class="actions">
       <a class="btn sm primary" href="{{ url_for('main.new_order') }}">+ New<span class="hide-sm"> order</span></a>
       <form class="inline" method="post" action="{{ url_for('auth.logout') }}">
